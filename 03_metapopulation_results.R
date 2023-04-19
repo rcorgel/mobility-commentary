@@ -61,35 +61,35 @@ cluster_num_vec <- cluster_pop$cluster_num
 # 3. RUN SIMULATIONS FOR EACH TRAVEL MATRIX #
 #############################################
 # True Matrix
-true_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
+true_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
                                    R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                    level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                    unit_x_walk = unit_x_walk, travel_mat = prob_trips_total, 
                                    max_time = 365, time_step = 1, initial_num = 1)
 
 # Adult Matrix
-adult_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
+adult_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
                                     R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                     level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                     unit_x_walk = unit_x_walk, travel_mat = prob_trips_adults, 
                                     max_time = 365, time_step = 1, initial_num = 1)
 
 # Censor Matrix
-censor_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
+censor_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
                                      R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                      level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                      unit_x_walk = unit_x_walk, travel_mat = prob_trips_censor, 
                                      max_time = 365, time_step = 1, initial_num = 1)
 
 # Weekly Matrix
-weekly_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
+weekly_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
                                      R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                      level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                      unit_x_walk = unit_x_walk, travel_mat = prob_trips_weekly, 
                                      max_time = 365, time_step = 1, initial_num = 1)
 
 # Region Matrix
-region_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
+region_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
                                      R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = cluster_num_vec, 
                                      level = 'cluster', pop_vec = cluster_pop_vec, intro_num = 2, 
                                      unit_x_walk = unit_x_walk, travel_mat = prob_trips_region, 
@@ -113,8 +113,8 @@ for (i in 1:4) {
     distinct(time, patch_num, avg_incid_I, sd_incid_I) %>% 
     ungroup() %>%
     # Calculate 95% case range for each time step
-    mutate(avg_incid_I_low = avg_incid_I - 1.96*(sd_incid_I/sqrt(100)),
-           avg_incid_I_high = avg_incid_I + 1.96*(sd_incid_I/sqrt(100))) %>%
+    mutate(avg_incid_I_low = avg_incid_I - 1.96*(sd_incid_I/sqrt(500)),
+           avg_incid_I_high = avg_incid_I + 1.96*(sd_incid_I/sqrt(500))) %>%
     # Calculate cumulative cases by patch
     group_by(patch_num) %>%
     # Indicate when cumulative cases > 5 for each patch
@@ -168,8 +168,8 @@ for (i in 1:2) {
     distinct(time, cluster_num, avg_incid_I, sd_incid_I) %>% 
     ungroup() %>%
     # Calculate 95% case range for each time step
-    mutate(avg_incid_I_low = avg_incid_I - 1.96*(sd_incid_I/sqrt(100)),
-           avg_incid_I_high = avg_incid_I + 1.96*(sd_incid_I/sqrt(100))) %>%
+    mutate(avg_incid_I_low = avg_incid_I - 1.96*(sd_incid_I/sqrt(500)),
+           avg_incid_I_high = avg_incid_I + 1.96*(sd_incid_I/sqrt(500))) %>%
     # Calculate cumulative cases by patch
     group_by(cluster_num) %>%
     # Indicate when cumulative cases > 50 for each patch

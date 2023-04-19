@@ -45,17 +45,17 @@ setwd('/Users/rcorgel/Library/CloudStorage/OneDrive-Personal/Projects/mobility-c
 
 # Set up initial patches
 n = 50
-xlocs<-runif(n,0,1000)
-ylocs<-runif(n,0,1000)
+xlocs<-runif(n,0,500)
+ylocs<-runif(n,0,500)
 popsize<-round(rgamma(50,1,2)*250000)
 dists<-as.matrix(dist(cbind(xlocs,ylocs)))
 diag(dists)<-1
 
 # Parameters for children and adult travel
-alpha_adult = 0.48
-beta_adult = 0.82
-gamma_adult = 18.00
-theta_adult = 0.03
+alpha_adult = 1.2
+beta_adult = 1.5
+gamma_adult = 100
+theta_adult = 0.001
 alpha_child = alpha_adult
 beta_child = alpha_adult
 gamma_child = gamma_adult * 10
