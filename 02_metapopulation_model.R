@@ -23,7 +23,7 @@ rm(list = ls())
 library(tidyverse)
 
 # Set the seed
-set.seed(12345)
+set.seed(123)
 
 # Set the directory
 setwd('/Users/rcorgel/Library/CloudStorage/OneDrive-Personal/Projects/mobility-commentary-project')
@@ -33,15 +33,15 @@ setwd('/Users/rcorgel/Library/CloudStorage/OneDrive-Personal/Projects/mobility-c
 ###########################################
 
 # For testing
-# density_dep = FALSE; R_0 = 1.5; gamma = 1/3; prop_s = 1.0
-# unit_vec = patch_num_vec; level = 'patch'; pop_vec = patch_pop_vec 
-# intro_num = 47; unit_x_walk = unit_x_walk; travel_mat = prob_trips_total
-# max_time = 365; time_step = 1; i = 2
+# density_dep = FALSE; R_0 = 1.05; gamma = 1/3; prop_s = 1.0
+# unit_vec = patch_num_vec; level = 'patch'; pop_vec = patch_pop_vec
+# intro_num = 6; unit_x_walk = unit_x_walk; travel_mat = prob_trips_total
+# max_time = 365; time_step = 1; i = 2; initial_num = 1
 
 # Create a discrete time sir function
 run_sir_model <- function(density_dep , R_0, gamma, prop_s, unit_vec, 
                           level = c('patch', 'cluster'), pop_vec, intro_num, 
-                          unit_x_walk, travel_mat, max_time, time_step) {
+                          unit_x_walk, travel_mat, max_time, time_step, initial_num) {
   
   # Set number of locations
   N <- length(unit_vec)
@@ -90,7 +90,7 @@ run_sir_model <- function(density_dep , R_0, gamma, prop_s, unit_vec,
   
   # Set introduction information
   # Place an infected individual in the admin unit
-  i_mat[intro_num, 1] <- 100
+  i_mat[intro_num, 1] <- initial_num
   
   # Loop through time steps
   for (i in 2:n_steps) {
@@ -108,10 +108,12 @@ run_sir_model <- function(density_dep , R_0, gamma, prop_s, unit_vec,
     
     # Estimate force of infection
     # Equation 2 from https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006600
-    prob_infect <- 1 - exp(-time_step * beta * travel_mat_binom_norm %*%
-    (t(travel_mat_binom_norm) %*% (i_mat[, i-1] / divisor)) /
+    prob_infect <- 1 - exp(-time_step * beta * (travel_mat_binom_norm %*%
+    ((t(travel_mat_binom_norm) %*% (i_mat[, i-1] / divisor)) /
     ((t(travel_mat_binom_norm) %*% ((s_mat[, i-1] + r_mat[, i-1]) / divisor)) +
-    (t(travel_mat_binom_norm) %*% (i_mat[, i-1] / divisor))))
+    (t(travel_mat_binom_norm) %*% (i_mat[, i-1] / divisor))))))
+    # prob_infect <- 1 - exp(-time_step * beta * (t(travel_mat_binom_norm) %*% (i_mat[, i-1] / divisor)))
+    
     # Estimate the number of new infections, pulling from a binomial distribution 
     new_infect <- rbinom(N, as.vector(s_mat[, i-1]), as.vector(prob_infect))
     
@@ -164,7 +166,7 @@ run_sir_model <- function(density_dep , R_0, gamma, prop_s, unit_vec,
 run_sir_model_multi <- function(n, density_dep, method = c('average', 'append', 'run_sum'),
                                 R_0, gamma, prop_s, unit_vec, 
                                 level = c('patch', 'cluster'), pop_vec, intro_num,
-                                unit_x_walk, travel_mat, max_time, time_step) {
+                                unit_x_walk, travel_mat, max_time, time_step, initial_num) {
   
   # Loop through multiple runs of the SIR model
   for (i in 1:n) {
@@ -173,7 +175,8 @@ run_sir_model_multi <- function(n, density_dep, method = c('average', 'append', 
                                 prop_s = prop_s, unit_vec = unit_vec, level = level, 
                                 pop_vec = pop_vec, unit_x_walk = unit_x_walk,
                                 intro_num = intro_num, travel_mat = travel_mat, 
-                                max_time = max_time, time_step = time_step)
+                                max_time = max_time, time_step = time_step,
+                                initial_num = initial_num)
     
     # Create run number variable
     single_run$run_num <- i

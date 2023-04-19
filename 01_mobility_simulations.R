@@ -34,7 +34,7 @@ library(cowplot)
 library(mobility)
 
 # Set the seed
-set.seed(12345)
+set.seed(123)
 
 # Set the directory
 setwd('/Users/rcorgel/Library/CloudStorage/OneDrive-Personal/Projects/mobility-commentary-project')
@@ -45,20 +45,20 @@ setwd('/Users/rcorgel/Library/CloudStorage/OneDrive-Personal/Projects/mobility-c
 
 # Set up initial patches
 n = 50
-xlocs<-runif(n,0,100)
-ylocs<-runif(n,0,100)
-popsize<-round(runif(n,5000,50000))
+xlocs<-runif(n,0,1000)
+ylocs<-runif(n,0,1000)
+popsize<-round(rgamma(50,1,2)*250000)
 dists<-as.matrix(dist(cbind(xlocs,ylocs)))
 diag(dists)<-1
 
 # Parameters for children and adult travel
-alpha_adult = 1.2
-beta_adult = 1.5
-gamma_adult = 100
-theta_adult = 0.001
+alpha_adult = 0.48
+beta_adult = 0.82
+gamma_adult = 18.00
+theta_adult = 0.03
 alpha_child = alpha_adult
 beta_child = alpha_adult
-gamma_child = gamma_adult * 2 
+gamma_child = gamma_adult * 10
 theta_child = theta_adult
 
 # set proportion of population that's children
@@ -200,9 +200,9 @@ trips_region = get_mob_matrix(orig = df_og$region_origin,
                               value = df_og$trips)
 trips_region = round(trips_region)
 #get probability of travel
-probs_trips_region= matrix(NA, nrow = nrow(trips_region), ncol = ncol(trips_region))
-for (i in 1:nrow(probs_trips_region)){
-  probs_trips_region[i,] = trips_region[i,] / sum(trips_region[i,])
+prob_trips_region= matrix(NA, nrow = nrow(trips_region), ncol = ncol(trips_region))
+for (i in 1:nrow(prob_trips_region)){
+  prob_trips_region[i,] = trips_region[i,] / sum(trips_region[i,])
 }
 
 ####################
@@ -213,63 +213,63 @@ for (i in 1:nrow(probs_trips_region)){
 matrices_abs = list(total_trips_wdiag, adult_trips_wdiag, child_trips_wdiag,
                     censored_total_trips, total_trips_weekly, trips_region, popsize, patch_df)
 matrices_prob = list(prob_trips_total, prob_trips_adults, prob_trips_child, 
-                     prob_trips_censor, prob_trips_weekly, probs_trips_region, popsize, patch_df)
+                     prob_trips_censor, prob_trips_weekly, prob_trips_region, popsize, patch_df)
 save(list = c('total_trips_wdiag', 'adult_trips_wdiag', 'child_trips_wdiag',
               'censored_total_trips', 'total_trips_weekly', 'trips_region', 
               'popsize', 'patch_df'), file = './tmp/metapop_dat_abs.RData')
 save(list = c('prob_trips_total', 'prob_trips_adults', 'prob_trips_child', 
-                 'prob_trips_censor', 'prob_trips_weekly', 'probs_trips_region', 
+                 'prob_trips_censor', 'prob_trips_weekly', 'prob_trips_region', 
               'popsize', 'patch_df'), file = './tmp/metapop_dat_probs.RData')
 
 # Plot
-breaks <- c(0.25, 0.5, 0.75, 1)
-plot_fun = function(dataset){
-  plot_df = ggplot(data=reshape2::melt(dataset)) +
-    geom_tile(aes(x=factor(Var2),
-                  y=factor(Var1),
-                  fill=log(value))) +
-    xlab('Destination') + ylab("Origin") +
-    theme_bw() + theme(axis.text.x=element_text(size=10),
-                       axis.text.y=element_text(size=10),
-                       axis.title.x=element_text(size=12, margin = margin(t = 15)),
-                       axis.title.y=element_text(size=12, margin = margin(r = 15)),
-                       legend.position='bottom') +
-    viridis::scale_fill_viridis(option='inferno', 
-                                direction=1,
-                                breaks=log(breaks),
-                                labels=breaks) +
-    guides(fill=guide_colorbar(title='Probability of travel',
-                               title.position='top',
-                               label.theme=element_text(size=9),
-                               barwidth=20,
-                               barheight=0.5,
-                               frame.colour='black',
-                               ticks=TRUE))
-  return(plot_df)
-}
-
-true_plot = plot_fun(prob_trips_total)
-adults_plot = plot_fun(prob_trips_adults)
-censored_plot = plot_fun(prob_trips_censor)
-weekly_plot = plot_fun(prob_trips_weekly)
-region_plot = plot_fun(probs_trips_region)
-prow = cowplot::plot_grid(true_plot + ggtitle("True") + theme(legend.position="none") +  theme(axis.text.x=element_blank(), axis.text.y = element_blank()
-), 
-adults_plot + ggtitle("Adults") + theme(legend.position="none") +  theme(axis.text.x=element_blank(), axis.text.y = element_blank()
-), 
-censored_plot + ggtitle("Censored") + theme(legend.position="none") +  theme(axis.text.x=element_blank(), axis.text.y = element_blank()
-), 
-weekly_plot + ggtitle("Weekly")+ theme(legend.position="none")+ theme(axis.text.x=element_blank(), axis.text.y = element_blank()
-), 
-region_plot + ggtitle("Regional")+ theme(legend.position="none")+ theme(axis.text.x=element_blank(), axis.text.y = element_blank()
-), 
-nrow = 3)
-legend <- get_legend(
-  # create some space to the left of the legend
-  true_plot + theme(legend.box.margin = margin(0, 0, 0, 12))
-)
-plot_grid(prow, legend, nrow = 2, rel_heights = c(10, 1))
-ggsave(filename = './figs/matrices.pdf')
+# breaks <- c(0.25, 0.5, 0.75, 1)
+# plot_fun = function(dataset){
+#   plot_df = ggplot(data=reshape2::melt(dataset)) +
+#     geom_tile(aes(x=factor(Var2),
+#                   y=factor(Var1),
+#                   fill=log(value))) +
+#     xlab('Destination') + ylab("Origin") +
+#     theme_bw() + theme(axis.text.x=element_text(size=10),
+#                        axis.text.y=element_text(size=10),
+#                        axis.title.x=element_text(size=12, margin = margin(t = 15)),
+#                        axis.title.y=element_text(size=12, margin = margin(r = 15)),
+#                        legend.position='bottom') +
+#     viridis::scale_fill_viridis(option='inferno', 
+#                                 direction=1,
+#                                 breaks=log(breaks),
+#                                 labels=breaks) +
+#     guides(fill=guide_colorbar(title='Probability of travel',
+#                                title.position='top',
+#                                label.theme=element_text(size=9),
+#                                barwidth=20,
+#                                barheight=0.5,
+#                                frame.colour='black',
+#                                ticks=TRUE))
+#   return(plot_df)
+# }
+# 
+# true_plot = plot_fun(prob_trips_total)
+# adults_plot = plot_fun(prob_trips_adults)
+# censored_plot = plot_fun(prob_trips_censor)
+# weekly_plot = plot_fun(prob_trips_weekly)
+# region_plot = plot_fun(probs_trips_region)
+# prow = cowplot::plot_grid(true_plot + ggtitle("True") + theme(legend.position="none") +  theme(axis.text.x=element_blank(), axis.text.y = element_blank()
+# ), 
+# adults_plot + ggtitle("Adults") + theme(legend.position="none") +  theme(axis.text.x=element_blank(), axis.text.y = element_blank()
+# ), 
+# censored_plot + ggtitle("Censored") + theme(legend.position="none") +  theme(axis.text.x=element_blank(), axis.text.y = element_blank()
+# ), 
+# weekly_plot + ggtitle("Weekly")+ theme(legend.position="none")+ theme(axis.text.x=element_blank(), axis.text.y = element_blank()
+# ), 
+# region_plot + ggtitle("Regional")+ theme(legend.position="none")+ theme(axis.text.x=element_blank(), axis.text.y = element_blank()
+# ), 
+# nrow = 3)
+# legend <- get_legend(
+#   # create some space to the left of the legend
+#   true_plot + theme(legend.box.margin = margin(0, 0, 0, 12))
+# )
+# plot_grid(prow, legend, nrow = 2, rel_heights = c(10, 1))
+# ggsave(filename = './figs/matrices.pdf')
 
 ####################################################
 # 9. GET COEFFICIENTS FROM FITTING MOBILITY MODELS #
