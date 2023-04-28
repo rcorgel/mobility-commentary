@@ -6,7 +6,7 @@
 #            1. Set-up script                                                  #
 #            2. Load and format data                                           #
 #            3. Run Simulations for each travel matrix                         #
-#            4. Calculate arrival times for each model result                  #
+#            4. Calculate epidemic statistics for each model result            #
 #                                                                              #
 # Project:   Mobility Commentary                                               #
 # Author:    Ronan Corgel                                                      #
@@ -61,56 +61,57 @@ cluster_num_vec <- cluster_pop$cluster_num
 # 3. RUN SIMULATIONS FOR EACH TRAVEL MATRIX #
 #############################################
 # True Matrix
-true_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
+true_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
                                    R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                    level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                    unit_x_walk = unit_x_walk, travel_mat = prob_trips_total, 
                                    max_time = 365, time_step = 1, initial_num = 1)
 
 # Adult Matrix
-adult_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
+adult_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
                                     R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                     level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                     unit_x_walk = unit_x_walk, travel_mat = prob_trips_adults, 
                                     max_time = 365, time_step = 1, initial_num = 1)
 
 # Censor Matrix
-censor_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
+censor_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
                                      R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                      level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                      unit_x_walk = unit_x_walk, travel_mat = prob_trips_censor, 
                                      max_time = 365, time_step = 1, initial_num = 1)
 
 # Weekly Matrix
-weekly_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
+weekly_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
                                      R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = patch_num_vec, 
                                      level = 'patch', pop_vec = patch_pop_vec, intro_num = 6, 
                                      unit_x_walk = unit_x_walk, travel_mat = prob_trips_weekly, 
                                      max_time = 365, time_step = 1, initial_num = 1)
 
 # Region Matrix
-region_result <- run_sir_model_multi(n = 500, density_dep = FALSE, method = 'append',
+region_result <- run_sir_model_multi(n = 100, density_dep = FALSE, method = 'append',
                                      R_0 = 1.5, gamma = 1/3, prop_s = 0.90, unit_vec = cluster_num_vec, 
                                      level = 'cluster', pop_vec = cluster_pop_vec, intro_num = 2, 
                                      unit_x_walk = unit_x_walk, travel_mat = prob_trips_region, 
-                                     max_time = 100, time_step = 1, initial_num = 1)
+                                     max_time = 365, time_step = 1, initial_num = 1)
 
-####################################################
-# 4. CALCULATE ARRIVAL TIMES FOR EACH MODEL RESULT #
-####################################################
+#####################################################
+# 4. CALCULATE EPIDEMIC STATS FOR EACH MODEL RESULT #
+#####################################################
 
 # Loop through patch level results and calculate arrival times
 result <- NULL
 result[[1]] <- true_result; result[[2]] <- adult_result; 
 result[[3]] <- censor_result; result[[4]] <- weekly_result; 
 arrival_times_patch <- NULL
+attack_rate_patch <- NULL
 for (i in 1:4) {
   result_intro <- result[[i]] %>%
     # Calculate average infections across simulation
     group_by(time, patch_num) %>%
     mutate(avg_incid_I = mean(incid_I),
            sd_incid_I = sd(incid_I)) %>%
-    distinct(time, patch_num, avg_incid_I, sd_incid_I) %>% 
+    distinct(time, patch_num, avg_incid_I, sd_incid_I, population) %>% 
     ungroup() %>%
     # Calculate 95% case range for each time step
     mutate(avg_incid_I_low = avg_incid_I - 1.96*(sd_incid_I/sqrt(500)),
@@ -129,6 +130,12 @@ for (i in 1:4) {
            intro_first_low = intro_low == 1 & !duplicated(intro_low == 1),
            intro_first_high = intro_high == 1 & !duplicated(intro_high == 1)) 
   
+  # Calculate attack rate
+  attack_rate <- result_intro %>% group_by(patch_num) %>% 
+    filter(time == 365) %>% mutate(attack_rate = cumu_I / population,
+                                   attack_rate_high = cumu_I_high / population,
+                                   attack_rate_low = cumu_I_low / population)
+  
   # Extract arrival times
   result_intro_mean <- result_intro %>% filter(intro_first == TRUE)
   result_intro_low <- result_intro %>% filter(intro_first_low == TRUE)
@@ -146,6 +153,7 @@ for (i in 1:4) {
                                                       'time_fast' = 'time')
   # Fill the empty object with results
   arrival_times_patch[[i]] <- result_intro_merge
+  attack_rate_patch[[i]] <- attack_rate
 }
 
 # Aggregate true matrix results into cluster level
@@ -159,6 +167,7 @@ true_result_cluster <- true_result %>%
 result_cluster <- NULL
 result_cluster[[1]] <- true_result_cluster; result_cluster[[2]] <- region_result; 
 arrival_times_cluster <- NULL
+attack_rate_cluster <- NULL
 for (i in 1:2) {
   result_intro <- result_cluster[[i]] %>%
     # Calculate average infections across simulation
@@ -184,6 +193,15 @@ for (i in 1:2) {
            intro_first_low = intro_low == 1 & !duplicated(intro_low == 1),
            intro_first_high = intro_high == 1 & !duplicated(intro_high == 1)) 
   
+  result_intro <- left_join(result_intro, cluster_pop, 
+                            by = c('cluster_num' = 'cluster_num'))
+  
+  # Calculate attack rate
+  attack_rate <- result_intro %>% group_by(cluster_num) %>% 
+    filter(time == 365) %>% mutate(attack_rate = cumu_I / cluster_population,
+                                   attack_rate_high = cumu_I_high / cluster_population,
+                                   attack_rate_low = cumu_I_low / cluster_population)
+  
   # Extract arrival times
   result_intro_mean <- result_intro %>% filter(intro_first == TRUE)
   result_intro_low <- result_intro %>% filter(intro_first_low == TRUE)
@@ -201,6 +219,7 @@ for (i in 1:2) {
                                                       'time_fast' = 'time')
   # Fill the empty object with results
   arrival_times_cluster[[i]] <- result_intro_merge
+  attack_rate_cluster[[i]] <- attack_rate
 }
 
 # Save arrival time results
@@ -210,9 +229,19 @@ arrival_times_censor <- arrival_times_patch[[3]]
 arrival_times_weekly <- arrival_times_patch[[4]]
 arrival_times_true_cluster <- arrival_times_cluster[[1]]
 arrival_times_region <- arrival_times_cluster[[2]]
+attack_rate_true <- attack_rate_patch[[1]]
+attack_rate_adult <- attack_rate_patch[[2]]
+attack_rate_censor <- attack_rate_patch[[3]]
+attack_rate_weekly <- attack_rate_patch[[4]]
+attack_rate_true_cluster <- attack_rate_cluster[[1]]
+attack_rate_region <- attack_rate_cluster[[2]]
+
 save(list = c('arrival_times_true', 'arrival_times_adult', 'arrival_times_censor',
               'arrival_times_weekly', 'arrival_times_true_cluster', 'arrival_times_region'),
      file = './tmp/arrival_times.RData')
+save(list = c('attack_rate_true', 'attack_rate_adult', 'attack_rate_censor',
+              'attack_rate_weekly', 'attack_rate_true_cluster', 'attack_rate_region'),
+     file = './tmp/attack_rate.RData')
 
 # Save average true results for epi curve figure
 avg_true_cluster <- true_result_cluster %>%

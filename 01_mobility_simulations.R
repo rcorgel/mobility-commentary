@@ -54,15 +54,15 @@ diag(dists)<-1
 # Parameters for children and adult travel
 alpha_adult = 1.2
 beta_adult = 1.5
-gamma_adult = 100
+gamma_adult = 40
 theta_adult = 0.001
 alpha_child = alpha_adult
-beta_child = alpha_adult
-gamma_child = gamma_adult * 10
+beta_child = alpha_adult * 3
+gamma_child = gamma_adult * 100
 theta_child = theta_adult
 
 # set proportion of population that's children
-N_child_prop = runif(n, 0.15, 0.40)
+N_child_prop = runif(n, 0.40, 0.50)
 N_child = round(N_child_prop * popsize)
 N_adult = popsize - N_child
 
@@ -92,12 +92,12 @@ prob_depart_child = rnorm(n,  0.02, sd = 0.02)
 prob_depart_child = replace(prob_depart_child, prob_depart_child<0.00001, 0.001)
 prob_depart_child = prob_depart_child[order(prob_depart_child)]
 prob_depart_child = prob_depart_child[rank(-N_child)]
-prob_depart_adult = rnorm(n, 0.04, sd = 0.04)  # order by population size
+prob_depart_adult = rnorm(n, 0.20, sd = 0.04)  # order by population size
 prob_depart_adult = replace(prob_depart_adult, prob_depart_adult<0.00001, 0.001)
 prob_depart_adult = prob_depart_adult[order(prob_depart_adult)]
 prob_depart_adult = prob_depart_adult[rank(-N_adult)]
 
-# Calcule proportion of travel for adults
+# Calculate proportion of travel for adults
 diag(trips_adults) = NA
 # scale them accordingly
 prob_trips_adults = trips_adults
@@ -137,14 +137,17 @@ for (i in 1:nrow(prob_trips_total)){
 # 5. CREATE CENSORED TRAVEL MATRIX #
 ####################################
 
-# Censoring - drop trips <10
+censoring_cutoff = 900
+
+# Censoring - drop trips <censoring_cutoff
 censored_total_trips = total_trips_wdiag
-censored_total_trips[censored_total_trips<10]<-NA
+censored_total_trips[censored_total_trips<censoring_cutoff]<-NA
 # get probabilities
 prob_trips_censor = matrix(NA, nrow = nrow(censored_total_trips), ncol = ncol(censored_total_trips))
 for (i in 1:nrow(prob_trips_censor)){
   prob_trips_censor[i,] = censored_total_trips[i,] / sum(censored_total_trips[i,], na.rm=TRUE)
 }
+rowSums(prob_trips_censor, na.rm = TRUE)
 
 ##################################
 # 5. CREATE WEEKLY TRAVEL MATRIX #
@@ -163,6 +166,7 @@ for (i in 1:nrow(prob_trips_weekly)){
 diag(prob_trips_weekly) = 1 - dept_weekly
 # get total number of trips
 total_trips_weekly = round(prob_trips_weekly * popsize)
+rowSums(prob_trips_weekly)
 
 ##################################
 # 5. CREATE REGION TRAVEL MATRIX #
@@ -204,6 +208,7 @@ prob_trips_region= matrix(NA, nrow = nrow(trips_region), ncol = ncol(trips_regio
 for (i in 1:nrow(prob_trips_region)){
   prob_trips_region[i,] = trips_region[i,] / sum(trips_region[i,])
 }
+rowSums(prob_trips_region)
 
 ####################
 # 8. SAVE AND PLOT #
@@ -218,8 +223,24 @@ save(list = c('total_trips_wdiag', 'adult_trips_wdiag', 'child_trips_wdiag',
               'censored_total_trips', 'total_trips_weekly', 'trips_region', 
               'popsize', 'patch_df'), file = './tmp/metapop_dat_abs.RData')
 save(list = c('prob_trips_total', 'prob_trips_adults', 'prob_trips_child', 
-                 'prob_trips_censor', 'prob_trips_weekly', 'prob_trips_region', 
+              'prob_trips_censor', 'prob_trips_weekly', 'prob_trips_region', 
               'popsize', 'patch_df'), file = './tmp/metapop_dat_probs.RData')
+
+mean(diag(prob_trips_total))
+mean(diag(prob_trips_adults))
+mean(diag(prob_trips_child))
+mean(diag(prob_trips_weekly))
+mean(diag(prob_trips_region))
+mean(diag(prob_trips_censor))
+
+mean(prob_trips_total[row(prob_trips_total)!=col(prob_trips_total)])
+mean(prob_trips_adults[row(prob_trips_adults)!=col(prob_trips_adults)])
+mean(prob_trips_censor[row(prob_trips_censor)!=col(prob_trips_censor)], na.rm = TRUE)
+mean(prob_trips_weekly[row(prob_trips_weekly)!=col(prob_trips_weekly)])
+mean(prob_trips_region[row(prob_trips_region)!=col(prob_trips_region)])
+
+
+
 
 # Plot
 # breaks <- c(0.25, 0.5, 0.75, 1)

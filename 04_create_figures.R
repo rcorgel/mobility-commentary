@@ -22,6 +22,10 @@ rm(list = ls())
 # Load libraries
 library(tidyverse)
 library(cowplot)
+library(ggplot2)
+library(scales)
+library(RColorBrewer)
+library(ggpubr)
 
 # Set the seed
 set.seed(123)
@@ -133,42 +137,77 @@ matrix_theme <- theme(panel.grid.minor = element_blank(),
                       plot.title = element_text(size=30, hjust = 0.5))
 
 # Make a mobility matrix plot function
-make_matrix_plot <- function(data, color, breaks, labs) {
-  plot <- ggplot(data=reshape2::melt(data)) +
-    geom_tile(aes(x=factor(Var2),
-                  y=factor(Var1),
-                  fill=log(value))) +
-    xlab('Destination') + ylab("Origin") +
-    theme_minimal() + matrix_theme + 
-    scale_fill_distiller(palette = color, na.value = "#FFFFFF", direction = 1,
-                         breaks = log(breaks),
-                         labels = labs) +
-    guides(fill=guide_colorbar(title='Probability of Travel',
-                               title.position='top',
-                               label.theme=element_text(size=12),
-                               barwidth=20,
-                               barheight=0.5,
-                               frame.colour='black',
-                               ticks=TRUE))
-  return(plot)
+make_matrix_plot <- function(data, color, na) {
+  if (na == TRUE) {
+    plot <- ggplot(data=data) +
+      geom_tile(aes(x=factor(Var2),
+                    y=factor(Var1),
+                    fill=value_cat)) +
+      xlab('Destination') + ylab("Origin") +
+      theme_minimal() + matrix_theme + 
+      scale_fill_manual('Trip Proportion', values = c(brewer.pal(n = 5, name = color), '#FFFFFF'),
+                        breaks = c("1", "2", 
+                                   "3", "4", "5", "NA"),
+                        labels = c("< 0.0001", "0.0001-0.001", 
+                                   "0.001-0.01", "0.01-0.1", "0.1-1.0", "NA"))
+    return(plot)
+  }
+  if (na == FALSE) {
+    plot <- ggplot(data=data) +
+      geom_tile(aes(x=factor(Var2),
+                    y=factor(Var1),
+                    fill=value_cat)) +
+      xlab('Destination') + ylab("Origin") +
+      theme_minimal() + matrix_theme + 
+      scale_fill_manual('Trip Proportion', values = c(brewer.pal(n = 5, name = color), '#FFFFFF'),
+                        breaks = c("< 0.0001", "0.0001-0.001", 
+                                   "0.001-0.01", "0.01-0.1", "0.1-1.0", "NA"),
+                        labels = c("< 0.0001", "0.0001-0.001", 
+                                   "0.001-0.01", "0.01-0.1", "0.1-1.0", "NA"))
+    return(plot)
+  }
 }
 
 # Create mobility matrix plots
-true_matrix <- make_matrix_plot(data = prob_trips_total, color = 'Blues', 
-                                breaks <- c(0.001, 0.01, 0.1, 0.99),
-                                labs <- c(0.001, 0.01, 0.1, 1))
-adult_matrix <- make_matrix_plot(data = prob_trips_adults, color = 'Greens',
-                                 breaks <- c(0.001, 0.99),
-                                 labs <- c(0.001, 1))
-censor_matrix <- make_matrix_plot(data = prob_trips_censor, color = 'Oranges',
-                                  breaks <- c(0.001, 0.01, 0.1, 0.99),
-                                  labs <- c(0.001, 0.01, 0.1, 1))
-weekly_matrix <- make_matrix_plot(data = prob_trips_weekly, color = 'Purples',
-                                  breaks <- c(0.001, 0.01, 0.1, 0.99),
-                                  labs <- c(0.001, 0.01, 0.1, 1))
-region_matrix <- make_matrix_plot(data = prob_trips_region, color = 'PuRd',
-                                  breaks <- c(0.001, 0.01, 0.1, 0.99),
-                                  labs <- c(0.001, 0.01, 0.1, 1))
+prob_trips_total_reshape <- reshape2::melt(prob_trips_total)
+prob_trips_total_reshape$value_cat <- cut(prob_trips_total_reshape$value,
+                                                breaks = c(-Inf, 0.0001, 0.001, 0.01, 0.1, Inf),
+                                                labels = c("< 0.0001", "0.0001-0.001", 
+                                                           "0.001-0.01", "0.01-0.1", "0.1-1.0"))
+true_matrix <- make_matrix_plot(data = prob_trips_total_reshape, color = 'Blues', na = FALSE)
+
+prob_trips_adults_reshape <- reshape2::melt(prob_trips_adults)
+prob_trips_adults_reshape$value_cat <- cut(prob_trips_adults_reshape$value,
+                                          breaks = c(-Inf, 0.0001, 0.001, 0.01, 0.1, Inf),
+                                          labels = c("< 0.0001", "0.0001-0.001", 
+                                                     "0.001-0.01", "0.01-0.1", "0.1-1.0"))
+adult_matrix <- make_matrix_plot(data = prob_trips_adults_reshape, color = 'Blues', na = FALSE)
+
+prob_trips_censor_reshape <- reshape2::melt(prob_trips_censor)
+prob_trips_censor_reshape$value_cat <- cut(prob_trips_censor_reshape$value,
+                                           breaks = c(-Inf, 0.0001, 0.001, 0.01, 0.1, Inf),
+                                           labels = c("< 0.0001", "0.0001-0.001", 
+                                                      "0.001-0.01", "0.01-0.1", "0.1-1.0"))
+prob_trips_censor_reshape$value_cat <- ifelse(is.na(prob_trips_censor_reshape$value_cat), "NA", prob_trips_censor_reshape$value_cat)
+censor_matrix <- make_matrix_plot(data = prob_trips_censor_reshape, color = 'Blues', na = TRUE)
+
+prob_trips_weekly_reshape <- reshape2::melt(prob_trips_weekly)
+prob_trips_weekly_reshape$value_cat <- cut(prob_trips_weekly_reshape$value,
+                                           breaks = c(-Inf, 0.0001, 0.001, 0.01, 0.1, Inf),
+                                           labels = c("< 0.0001", "0.0001-0.001", 
+                                                      "0.001-0.01", "0.01-0.1", "0.1-1.0"))
+weekly_matrix <- make_matrix_plot(data = prob_trips_weekly_reshape, color = 'Blues', na = FALSE)
+
+prob_trips_region_reshape <- reshape2::melt(prob_trips_region)
+prob_trips_region_reshape$value_cat <- cut(prob_trips_region_reshape$value,
+                                           breaks = c(-Inf, 0.0001, 0.001, 0.01, 0.1, Inf),
+                                           labels = c("< 0.0001", "0.0001-0.001", 
+                                                      "0.001-0.01", "0.01-0.1", "0.1-1.0"))
+region_matrix <- make_matrix_plot(data = prob_trips_region_reshape, color = 'Blues', na = FALSE)
+
+prob_trips_total_reshape$value_cat <- ifelse(is.na(prob_trips_total_reshape$value_cat), "NA", prob_trips_total_reshape$value_cat)
+prob_trips_total_reshape[1, 4] <- "NA"
+legend <- get_legend(make_matrix_plot(data = prob_trips_total_reshape, color = 'Blues', na = TRUE) + guides(fill = guide_legend(nrow = 1)))
 
 # Make arrival time comparison plots
 # True Matrix
@@ -194,61 +233,89 @@ true_plot <- ggplot(data = arrival_times_true,
 
 # Adult Matrix
 arrival_times_true$Category <- "True"
+arrival_times_true$rank <- rank(arrival_times_true$time_mean)
 arrival_times_adult$Category <- "Adult"
-arrival_times_adult <- rbind(arrival_times_adult, arrival_times_true)
-adult_plot <- ggplot(data = arrival_times_adult,
-       aes(y = reorder(patch_num, time_mean), x = time_mean)) + 
-  geom_point(size = 3, alpha = 0.6, aes(color = Category)) + theme_minimal() +
-  ylab('Patch (ordered)') +
-  xlab('Arrival Time (days)') +
-  scale_x_continuous(limits = c(0, 90)) +
-  scale_color_manual(values = c('#74C476', '#4292C6')) +
+arrival_times_adult_join <- left_join(arrival_times_adult, arrival_times_true[, c('patch_num', 'rank', 'time_mean')],
+                                 by = c('patch_num' = 'patch_num'))
+arrival_times_adult_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_adult_join$time_mean.y - 
+                                          arrival_times_adult_join$time_mean.x > 0, 
+                                        'Faster', 'Slower')
+arrival_times_adult_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_adult_join$time_mean.y - 
+                                          arrival_times_adult_join$time_mean.x == 0, 
+                                        'Identical', arrival_times_adult_join$`Biased Mobility Matrix is`)
+arrival_times_adult_append <- rbind(arrival_times_adult, arrival_times_true)
+adult_plot <- ggplot(data = arrival_times_adult_join,
+       aes(y = time_mean.y, x = time_mean.x)) + 
+  geom_point(size = 3, alpha = 0.6, aes(color = `Biased Mobility Matrix is`)) + theme_minimal() +
+  geom_abline(slope=1, intercept = 0, linetype = 2, linewidth = 1, color = 'black', alpha = 0.6) +
+  ylab('True Arrival Time (days)') +
+  xlab('Estimate Arrival Time (days)') +
+  scale_x_continuous(limits = c(20, 85)) +
+  scale_y_continuous(limits = c(20, 85)) +
+  scale_color_manual(values = c('#FCD12A', '#FF5C5C')) +
   theme(axis.title = element_text(size=26),
         axis.text = element_text(size=22),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
-        legend.position = 'true',
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
         legend.text = element_text(size = 22),
         legend.title = element_text(size = 22),
         plot.title = element_text(size=26, hjust = 0.5))
 
 # Censored Matrix
 arrival_times_censor$Category <- "Censor"
-arrival_times_censor <- rbind(arrival_times_censor, arrival_times_true)
-censor_plot <- ggplot(data = arrival_times_censor,
-                     aes(y = reorder(patch_num, time_mean), x = time_mean)) + 
-  geom_point(size = 3, alpha = 0.6, aes(color = Category)) + theme_minimal() +
-  ylab('Patch (ordered)') +
-  xlab('Arrival Time (days)') +
-  scale_x_continuous(limits = c(0, 90)) +
-  scale_color_manual(values = c('#FD8D3C', '#4292C6')) +
+arrival_times_censor_join <- left_join(arrival_times_censor, arrival_times_true[, c('patch_num', 'rank', 'time_mean')],
+                                 by = c('patch_num' = 'patch_num'))
+arrival_times_censor_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_censor_join$time_mean.y - 
+                                                            arrival_times_censor_join$time_mean.x > 0, 
+                                                          'Faster', 'Slower')
+arrival_times_censor_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_censor_join$time_mean.y - 
+                                                            arrival_times_censor_join$time_mean.x == 0, 
+                                                          'Identical', arrival_times_censor_join$`Biased Mobility Matrix is`)
+arrival_times_censor_append <- rbind(arrival_times_censor, arrival_times_true)
+censor_plot <- ggplot(data = arrival_times_censor_join,
+                     aes(y = time_mean.y, x = time_mean.x)) + 
+  geom_point(size = 3, alpha = 0.6, aes(color = `Biased Mobility Matrix is`)) + theme_minimal() +
+  geom_abline(slope=1, intercept = 0, linetype = 2, linewidth = 1, color = 'black', alpha = 0.6) +
+  ylab('True Arrival Time (days)') +
+  xlab('Estimate Arrival Time (days)') +
+  scale_x_continuous(limits = c(20, 85)) +
+  scale_y_continuous(limits = c(20, 85)) +
+  scale_color_manual(values = c('#FCD12A','#4292C6', '#FF5C5C')) +
   theme(axis.title = element_text(size=26),
         axis.text = element_text(size=22),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
-        legend.position = 'true',
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
         legend.text = element_text(size = 22),
         legend.title = element_text(size = 22),
         plot.title = element_text(size=26, hjust = 0.5))
 
 # Weekly Matrix
 arrival_times_weekly$Category <- "Weekly"
-arrival_times_weekly <- rbind(arrival_times_weekly, arrival_times_true)
-weekly_plot <- ggplot(data = arrival_times_weekly,
-                      aes(y = reorder(patch_num, time_mean), x = time_mean)) + 
-  geom_point(size = 3, alpha = 0.6, aes(color = Category)) + theme_minimal() +
-  ylab('Patch (ordered)') +
-  xlab('Arrival Time (days)') +
-  scale_x_continuous(limits = c(0, 90)) +
-  scale_color_manual(values = c('#807DBA', '#4292C6')) +
+arrival_times_weekly_join <- left_join(arrival_times_weekly, arrival_times_true[, c('patch_num', 'rank', 'time_mean')],
+                                  by = c('patch_num' = 'patch_num'))
+arrival_times_weekly_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_weekly_join$time_mean.y - 
+                                                             arrival_times_weekly_join$time_mean.x > 0, 
+                                                           'Faster', 'Slower')
+arrival_times_weekly_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_weekly_join$time_mean.y - 
+                                                             arrival_times_weekly_join$time_mean.x == 0, 
+                                                           'Identical', arrival_times_weekly_join$`Biased Mobility Matrix is`)
+arrival_times_weekly_append <- rbind(arrival_times_weekly, arrival_times_true)
+weekly_plot <- ggplot(data = arrival_times_weekly_join,
+                      aes(y = time_mean.y, x = time_mean.x)) + 
+  geom_point(size = 3, alpha = 0.6, aes(color = `Biased Mobility Matrix is`)) + theme_minimal() +
+  geom_abline(slope=1, intercept = 0, linetype = 2, linewidth = 1, color = 'black', alpha = 0.6) +
+  ylab('True Arrival Time (days)') +
+  xlab('Estimate Arrival Time (days)') +
+  scale_x_continuous(limits = c(20, 85)) +
+  scale_y_continuous(limits = c(20, 85)) +
+  scale_color_manual(values = c('#FCD12A', '#4292C6', '#FF5C5C')) +
   theme(axis.title = element_text(size=26),
         axis.text = element_text(size=22),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
-        legend.position = 'true',
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
         legend.text = element_text(size = 22),
         legend.title = element_text(size = 22),
         plot.title = element_text(size=26, hjust = 0.5))
@@ -256,37 +323,122 @@ weekly_plot <- ggplot(data = arrival_times_weekly,
 # Regional Matrix
 arrival_times_true_cluster$Category <- "True"
 arrival_times_region$Category <- "Region"
-arrival_times_region <- rbind(arrival_times_region, arrival_times_true_cluster)
-region_plot <- ggplot(data = arrival_times_region,
-                      aes(y = reorder(cluster_num, time_mean), x = time_mean)) + 
-  geom_point(size = 3, alpha = 0.6, aes(color = Category)) + theme_minimal() +
-  ylab('Cluster (ordered)') +
-  xlab('Arrival Time (days)') +
-  scale_x_continuous(limits = c(0, 90)) +
-  scale_color_manual(values = c('#DF65B0', '#4292C6')) +
+arrival_times_region_join <- left_join(arrival_times_region, arrival_times_true_cluster[, c('cluster_num', 'time_mean')],
+                                  by = c('cluster_num' = 'cluster_num'))
+arrival_times_region_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_region_join$time_mean.y - 
+                                                             arrival_times_region_join$time_mean.x > 0, 
+                                                           'Faster', 'Slower')
+arrival_times_region_join$`Biased Mobility Matrix is` <- ifelse(arrival_times_region_join$time_mean.y - 
+                                                             arrival_times_region_join$time_mean.x == 0, 
+                                                           'Identical', arrival_times_region_join$`Biased Mobility Matrix is`)
+arrival_times_region_append <- rbind(arrival_times_region, arrival_times_true_cluster)
+region_plot <- ggplot(data = arrival_times_region_join,
+                      aes(y = time_mean.y, x = time_mean.x)) + 
+  geom_point(size = 3, alpha = 0.6, aes(color = `Biased Mobility Matrix is`)) + theme_minimal() +
+  geom_abline(slope=1, intercept = 0, linetype = 2, linewidth = 1, color = 'black', alpha = 0.6) +
+  ylab('True Arrival Time (days)') +
+  xlab('Estimate Arrival Time (days)') +
+  scale_x_continuous(limits = c(20, 85)) +
+  scale_y_continuous(limits = c(20, 85)) +
+  scale_color_manual(values = c('#FCD12A', '#4292C6', '#FF5C5C')) +
   theme(axis.title = element_text(size=26),
         axis.text = element_text(size=22),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
-        legend.position = 'true',
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
         legend.text = element_text(size = 22),
         legend.title = element_text(size = 22),
         plot.title = element_text(size=26, hjust = 0.5))
 
+# Extract Legend
+legend_plot <- get_legend(censor_plot)
+
 # Combine all figures into one
-figure <- plot_grid(true_matrix + ggtitle('True Mobility Matrix'),
-                    adult_matrix + ggtitle('Adult-Only Mobility Matrix'),
-                    censor_matrix + ggtitle('Censored Mobility Matrix'),
-                    weekly_matrix + ggtitle('Weekly Mobility Matrix'),
-                    region_matrix + ggtitle('Regional Mobility Matrix'),
-                    true_plot,
-                    adult_plot,
-                    censor_plot,
-                    weekly_plot,
-                    region_plot,
-                    nrow = 2)
-ggsave('./figs/figure_3.jpg', plot = figure, height = 14, width = 30)
+figure_matrix <- plot_grid(true_matrix + ggtitle('True Mobility Matrix') + theme(legend.position = 'none'),
+                    adult_matrix + ggtitle('Adult-Only Mobility Matrix') + theme(legend.position = 'none'),
+                    censor_matrix + ggtitle('Censored Mobility Matrix') + theme(legend.position = 'none'),
+                    weekly_matrix + ggtitle('Weekly Mobility Matrix') + theme(legend.position = 'none'),
+                    region_matrix + ggtitle('Regional Mobility Matrix') + theme(legend.position = 'none'),
+                    nrow = 1)
+
+figure_plot <- plot_grid(true_plot + theme(legend.position = 'none'),
+                         adult_plot + theme(legend.position = 'none'),
+                         censor_plot + theme(legend.position = 'none'),
+                         weekly_plot + theme(legend.position = 'none'),
+                         region_plot + theme(legend.position = 'none'),
+                         nrow = 1)
+
+figure_combined <- plot_grid(figure_matrix, legend, figure_plot, legend_plot,
+                             rel_heights = c(1, 0.15, 1, 0.15), nrow = 4)
+
+
+
+ggsave('./figs/figure_3.jpg', plot = figure_combined, height = 15, width = 30)
+
+
+plot_1 <- ggplot(arrival_times_adult_append, aes(x=time_mean, fill=Category)) +
+  geom_density(alpha=.25) + theme_minimal() + 
+  ylab('Density') +
+  xlab('Arrival Time (days)') +
+  scale_fill_manual(values = c('#FF5C5C', '#4292C6')) +
+  theme(axis.title = element_text(size=26),
+        axis.text = element_text(size=22),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
+        legend.text = element_text(size = 22),
+        legend.title = element_text(size = 22),
+        plot.title = element_text(size=26, hjust = 0.5))
+
+plot_2 <- ggplot(arrival_times_censor_append, aes(x=time_mean, fill=Category)) +
+  geom_density(alpha=.25) + theme_minimal() + 
+  ylab('Density') +
+  xlab('Arrival Time (days)') +
+  scale_fill_manual(values = c('#FF5C5C', '#4292C6')) +
+  theme(axis.title = element_text(size=26),
+        axis.text = element_text(size=22),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
+        legend.text = element_text(size = 22),
+        legend.title = element_text(size = 22),
+        plot.title = element_text(size=26, hjust = 0.5))
+
+plot_3 <- ggplot(arrival_times_weekly_append, aes(x=time_mean, fill=Category)) +
+  geom_density(alpha=.25) + theme_minimal() + 
+  ylab('Density') +
+  xlab('Arrival Time (days)') +
+  scale_fill_manual(values = c('#4292C6', '#FF5C5C')) +
+  theme(axis.title = element_text(size=26),
+        axis.text = element_text(size=22),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
+        legend.text = element_text(size = 22),
+        legend.title = element_text(size = 22),
+        plot.title = element_text(size=26, hjust = 0.5))
+
+plot_4 <- ggplot(arrival_times_region_append, aes(x=time_mean, fill=Category)) +
+  geom_density(alpha=.25) + theme_minimal() + 
+  ylab('Density') +
+  xlab('Arrival Time (days)') +
+  scale_fill_manual(values = c('#FF5C5C', '#4292C6')) +
+  theme(axis.title = element_text(size=26),
+        axis.text = element_text(size=22),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        legend.position = 'bottom',
+        legend.text = element_text(size = 22),
+        legend.title = element_text(size = 22),
+        plot.title = element_text(size=26, hjust = 0.5))
+
+figure <- plot_grid(plot_1 + ggtitle('True vs. Adult Mobility') ,
+                           plot_2 + ggtitle('True vs. Censored Mobility') ,
+                           plot_3 + ggtitle('True vs. Weekly Mobility'),
+                           plot_4 + ggtitle('True vs. Regional Mobility') ,
+                           nrow = 1)
+
+ggsave('./figs/figure_4.jpg', plot = figure, height = 8, width = 30)
 
 ################################################################################
 ################################################################################
