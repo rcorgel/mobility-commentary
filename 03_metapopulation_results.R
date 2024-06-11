@@ -55,7 +55,7 @@ patch_num_vec <- unit_x_walk$patch_num
 cluster_num_vec <- cluster_pop$cluster_num
 
 # Largest Population Patch = 6
-# Patch 6 is located in cluster
+# Patch 6 is located in cluster 2
 
 #############################################
 # 3. RUN SIMULATIONS FOR EACH TRAVEL MATRIX #
